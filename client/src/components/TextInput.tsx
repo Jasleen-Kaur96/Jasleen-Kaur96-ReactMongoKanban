@@ -1,6 +1,6 @@
-import { memo } from "react";
+import { memo, Dispatch, SetStateAction } from "react";
 
-const TextInput = ({largeText,color,value,setValue}:{largeText:boolean,color:string,value: string, setValue:any}) => {
+const TextInput = ({largeText,color,value,setValue}:{largeText:boolean,color:string,value: string, setValue:Dispatch<SetStateAction<string>>}) => {
     return (
       <input
         style={{

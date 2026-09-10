@@ -2,6 +2,29 @@ import { useEffect, useState } from "react";
 import { socket } from "../socket";
 import { BoardState, Column } from "../types";
 
+function reorderCardIds(
+  columns: BoardState["columns"],
+  sourceColId: string,
+  destColId: string,
+  cardId: string,
+  destIndex: number,
+): { source: string[]; dest: string[] } {
+  const sourceItems = [...columns[sourceColId].cardIds];
+  const destItems =
+    sourceColId === destColId ? sourceItems : [...columns[destColId].cardIds];
+
+  const sourceIndex = sourceItems.indexOf(cardId);
+  if (sourceIndex !== -1) {
+    sourceItems.splice(sourceIndex, 1);
+  }
+
+  if (!destItems.includes(cardId)) {
+    destItems.splice(destIndex, 0, cardId);
+  }
+
+  return { source: sourceItems, dest: destItems };
+}
+
 export function useBoard() {
   const defaultBoardState = {
     cards: {},
@@ -16,18 +39,11 @@ export function useBoard() {
   const [activeId, setActiveId] = useState<string | null>(null);
    const [sourceId, setSourceId] = useState<string | undefined>();
 
+  // --- Real-time socket sync ---
   useEffect(() => {
     // initial load
     socket.on("board:init", (data: BoardState) => {
-      console.log("📥 board:init", data);
       setBoard(data);
-    });
-    socket.on("connect", () => {
-      console.log("✅ connected to server", socket.id);
-    });
-
-    socket.on("disconnect", () => {
-      console.log("❌ disconnected");
     });
 
     // updates from other users
@@ -157,6 +173,7 @@ export function useBoard() {
     };
   }, []);
 
+  // --- Drag and drop ---
   const findColumn = (board: BoardState, cardId: string) => {
     return Object.values(board.columns).find((col: Column) =>
       col.cardIds.includes(cardId),
@@ -268,22 +285,19 @@ export function useBoard() {
       }
       if (!sourceCol || !destCol) return prev; // Only handle cross-column preview
       if (sourceCol.id !== destCol.id) {
-        const sourceItems = [...sourceCol.cardIds];
-        const destItems = [...destCol.cardIds];
-        const sourceIndex = sourceItems.indexOf(active.id);
-        sourceItems.splice(sourceIndex, 1);
+        if (destCol.cardIds.includes(active.id)) return prev;
 
-        if (destItems.includes(active.id)) return prev;
-        let destIndex;
+        // dropping on column (empty space)
+        const destIndex =
+          over.id in prev.columns ? 0 : destCol.cardIds.indexOf(over.id);
 
-        // 👉 dropping on column (empty space)
-        if (over.id in prev.columns) {
-          destIndex = 0;
-        } else {
-          destIndex = destItems.indexOf(over.id);
-        }
-
-        destItems.splice(destIndex, 0, active.id);
+        const { source, dest } = reorderCardIds(
+          prev.columns,
+          sourceCol.id,
+          destCol.id,
+          active.id,
+          destIndex,
+        );
 
         return {
           ...prev,
@@ -291,11 +305,11 @@ export function useBoard() {
             ...prev.columns,
             [sourceCol.id]: {
               ...sourceCol,
-              cardIds: sourceItems,
+              cardIds: source,
             },
             [destCol.id]: {
               ...destCol,
-              cardIds: destItems,
+              cardIds: dest,
             },
           },
         };

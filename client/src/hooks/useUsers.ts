@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { UserProps } from "../types";
+import { API_BASE_URL } from "../config";
 
 export function useUsers() {
   const [users, setUsers] = useState<UserProps[]>([]);
-  const [active, setActive] = useState<String[]>([]);
+  const [active, setActive] = useState<string[]>([]);
   useEffect(() => {
-    fetch("http://localhost:4000/users")
+    fetch(`${API_BASE_URL}/users`)
       .then((res) => res.json())
       .then(setUsers);
   }, []);

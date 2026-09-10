@@ -10,6 +10,9 @@ const CreateEditCard = ({
   description,
   setTitle,
   setDescription,
+  assignedTo,
+  setAssignedTo,
+  users,
   createNewTask,
   toggleNewCard,
 }: CreateEditCardProps) => {
@@ -43,6 +46,17 @@ const CreateEditCard = ({
           value={description}
           setValue={setDescription}
         />
+        <select
+          value={assignedTo}
+          onChange={(e) => setAssignedTo(e.target.value)}
+          style={{ backgroundColor: "transparent", color, marginTop: 5 }}
+        >
+          {users.map((user) => (
+            <option key={user._id} value={user._id}>
+              {user.name}
+            </option>
+          ))}
+        </select>
       </div>
       <div style={{ display: "flex" }}>
         {title && description ? (

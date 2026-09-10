@@ -5,18 +5,7 @@ const boardSchema = new mongoose.Schema({
     type: Object,
     required: true,
     default: {
-      cards: {
-        type: Map,
-        of: new mongoose.Schema({
-          id: String,
-          title: String,
-          description: String,
-          assignedTo: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "User",
-          },
-        }),
-      },
+      cards: {},
       columns: {},
       columnOrder: [],
     },

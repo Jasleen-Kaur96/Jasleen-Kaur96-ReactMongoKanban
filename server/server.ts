@@ -4,7 +4,7 @@ import { Server } from "socket.io";
 import cors from "cors";
 import { BoardModel } from "./db/models/Board";
 import { connectDB } from "./db/db";
-import { CreateCardPayload, DeleteCardPayload, UpdateCardPayload } from "./types";
+import { BoardState, CreateCardPayload, DeleteCardPayload, UpdateCardPayload } from "./types";
 import { UserModel } from "./db/models/User";
 
 const app = express();
@@ -46,105 +46,123 @@ const initBoard = async () => {
 
 };
 
-// 🔌 Socket connection
-io.on("connection", async(socket) => {
-  console.log("User connected:", socket.id);
+const getBoardRecord = async () => {
+  const board = await BoardModel.findOne();
+  if (!board) return null;
+  return { id: board._id, data: board.data as unknown as BoardState };
+};
 
+const saveBoardData = async (id: unknown, data: BoardState) => {
+  await BoardModel.updateOne({ _id: id }, { data });
+};
+
+// Socket connection
+io.on("connection", async(socket) => {
   const board = await BoardModel.findOne();
   socket.emit("board:init", board?.data);
   // CREATE CARD
   socket.on("card:create", async (payload: CreateCardPayload) => {
-    const { card, columnId } = payload;
+    try {
+      const { card, columnId } = payload;
 
-    const board = await BoardModel.findOne();
-    if (!board) return;
+      const record = await getBoardRecord();
+      if (!record) return;
+      const { id, data } = record;
 
-    const data = board.data as any;
-    if (!data.cards) {
-  data.cards = {};
-}
-    data.cards[card.id] = card;
-    data.columns[columnId].cardIds.push(card.id);
+      if (!data.cards) {
+        data.cards = {};
+      }
+      data.cards[card.id] = card;
+      data.columns[columnId].cardIds.push(card.id);
 
-    await BoardModel.updateOne({ _id: board._id }, { data });
+      await saveBoardData(id, data);
 
-    io.emit("card:create", payload); // send to all clients
+      io.emit("card:create", payload); // send to all clients
+    } catch (err) {
+      socket.emit("card:create:error", { message: "Failed to create card" });
+    }
   });
 
   // UPDATE CARD
   socket.on("card:update", async (payload: UpdateCardPayload) => {
-    const { cardId, updates } = payload;
+    try {
+      const { cardId, updates } = payload;
 
-    const board = await BoardModel.findOne();
-    if (!board) return;
+      const record = await getBoardRecord();
+      if (!record) return;
+      const { id, data } = record;
 
-    const data = board.data as any;
+      data.cards[cardId] = {
+        ...data.cards[cardId],
+        ...updates,
+      };
 
-    data.cards[cardId] = {
-      ...data.cards[cardId],
-      ...updates,
-    };
+      await saveBoardData(id, data);
 
-    await BoardModel.updateOne({ _id: board._id }, { data });
-
-    io.emit("card:update", payload);
+      io.emit("card:update", payload);
+    } catch (err) {
+      socket.emit("card:update:error", { message: "Failed to update card" });
+    }
   });
 
   // DELETE CARD
   socket.on("card:delete", async (payload: DeleteCardPayload) => {
-    const { cardId, columnId } = payload;
+    try {
+      const { cardId, columnId } = payload;
 
-    const board = await BoardModel.findOne();
-    if (!board) return;
+      const record = await getBoardRecord();
+      if (!record) return;
+      const { id, data } = record;
 
-    const data = board.data as any;
+      delete data.cards[cardId];
 
-    delete data.cards[cardId];
+      data.columns[columnId].cardIds =
+        data.columns[columnId].cardIds.filter((id: string) => id !== cardId);
 
-    data.columns[columnId].cardIds =
-      data.columns[columnId].cardIds.filter((id: string) => id !== cardId);
+      await saveBoardData(id, data);
 
-    await BoardModel.updateOne({ _id: board._id }, { data });
-
-    io.emit("card:delete", payload);
+      io.emit("card:delete", payload);
+    } catch (err) {
+      socket.emit("card:delete:error", { message: "Failed to delete card" });
+    }
   });
 
- socket.on("card:move", async ({ cardId, sourceColId, destColId, destIndex, senderId }) => {
-  const board = await BoardModel.findOne();
-  if (!board) return;
+  socket.on("card:move", async ({ cardId, sourceColId, destColId, destIndex, senderId }) => {
+    try {
+      const record = await getBoardRecord();
+      if (!record) return;
+      const { id, data } = record;
 
-  const data = board.data as any;
+      // SAME COLUMN (reorder)
+      if (sourceColId === destColId) {
+        const items = [...data.columns[sourceColId].cardIds];
 
-  // SAME COLUMN (reorder)
-  if (sourceColId === destColId) {
-    const items = [...data.columns[sourceColId].cardIds];
+        const oldIndex = items.indexOf(cardId);
+        if (oldIndex === -1) return;
 
-    const oldIndex = items.indexOf(cardId);
-    if (oldIndex === -1) return;
+        items.splice(oldIndex, 1);
+        items.splice(destIndex, 0, cardId);
 
-    items.splice(oldIndex, 1);
-    items.splice(destIndex, 0, cardId);
+        data.columns[sourceColId].cardIds = items;
+      } else {
+        // CROSS COLUMN
+        const sourceItems = data.columns[sourceColId].cardIds.filter(
+          (id: string) => id !== cardId
+        );
+        const destItems = [...data.columns[destColId].cardIds];
+        destItems.splice(destIndex, 0, cardId);
 
-    data.columns[sourceColId].cardIds = items;
-  } else {
-    // CROSS COLUMN
-    const sourceItems = data.columns[sourceColId].cardIds.filter(
-      (id: string) => id !== cardId
-    );
-    const destItems = [...data.columns[destColId].cardIds];
-    destItems.splice(destIndex, 0, cardId);
+        data.columns[sourceColId].cardIds = sourceItems;
+        data.columns[destColId].cardIds = destItems;
+      }
 
-    data.columns[sourceColId].cardIds = sourceItems;
-    data.columns[destColId].cardIds = destItems;
-  }
+      await saveBoardData(id, data);
 
-  await BoardModel.updateOne(
-    { _id: board._id },
-    { data }
-  );
-
-  io.emit("card:move", { cardId, sourceColId, destColId, destIndex, senderId });
-});
+      io.emit("card:move", { cardId, sourceColId, destColId, destIndex, senderId });
+    } catch (err) {
+      socket.emit("card:move:error", { message: "Failed to move card" });
+    }
+  });
 });
 
 const startServer = async () => {
@@ -152,9 +170,7 @@ const startServer = async () => {
   await seedUsers();
   await initBoard();
 
-  server.listen(4000, () => {
-    console.log("Server running on http://localhost:4000");
-  });
+  server.listen(4000);
 };
 
 startServer();

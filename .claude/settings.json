@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./node_modules/.bin/tsc *)",
+      "Bash(./node_modules/.bin/eslint *)",
+      "Bash(CI=true ./node_modules/.bin/eslint *)",
+      "Bash(cd /Users/jasleenkaur/Desktop/Jasleen-Kaur96-ReactMongoKanban/client && ./node_modules/.bin/tsc *)",
+      "Bash(cd /Users/jasleenkaur/Desktop/Jasleen-Kaur96-ReactMongoKanban/client && CI=true ./node_modules/.bin/eslint *)",
+      "Bash(cd /Users/jasleenkaur/Desktop/Jasleen-Kaur96-ReactMongoKanban && grep -RIn *)",
+      "Bash(grep -RIn --exclude-dir=node_modules *)"
+    ]
+  }
+}

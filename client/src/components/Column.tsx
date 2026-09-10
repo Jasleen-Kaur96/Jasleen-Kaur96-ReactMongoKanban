@@ -15,10 +15,10 @@ import { FaCirclePlus } from "react-icons/fa6";
 import CreateEditCard from "./CreateEditCard";
 import useCreateEditCard from "../hooks/useCreateEditCard";
 
-const Column = ({ column, cards, index, active }: ColumnProps) => {
+const Column = ({ column, cards, index, active, users }: ColumnProps) => {
   const color = columnColors[index];
   const lightColor = columnColorsOpacity[index];
-  const createEdit = useCreateEditCard();
+  const createEdit = useCreateEditCard(users);
   const { isNew, toggleNewCard } = createEdit;
 
   const { setNodeRef, isOver } = useDroppable({

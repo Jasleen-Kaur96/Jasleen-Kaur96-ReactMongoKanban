@@ -18,6 +18,7 @@ const Board = ({ board }: { board: BoardState }) => {
               column={column}
               active={userState.active}
               cards={board.cards}
+              users={userState.users}
             />
           );
         })}

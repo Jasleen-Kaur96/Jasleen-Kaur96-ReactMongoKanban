@@ -21,30 +21,34 @@ export type BoardState = {
 };
 
 
-export type ColumnProps = {
-  index: number;
-  column: Column;
-  cards: Record<string, Card>;
-  active: String[];
-};
-
-export type CreateEditCardProps = {
-  title: string;
-  description: string;
-  setTitle:Dispatch<SetStateAction<string>>;
-  setDescription:Dispatch<SetStateAction<string>>; 
-  createNewTask:()=>void; 
-  toggleNewCard:()=>void;
-}
-
 export type UserProps = {
   _id: string;
   name: string;
   email: string;
 };
 
+export type ColumnProps = {
+  index: number;
+  column: Column;
+  cards: Record<string, Card>;
+  active: string[];
+  users: UserProps[];
+};
+
+export type CreateEditCardProps = {
+  title: string;
+  description: string;
+  setTitle:Dispatch<SetStateAction<string>>;
+  setDescription:Dispatch<SetStateAction<string>>;
+  assignedTo: string;
+  setAssignedTo: Dispatch<SetStateAction<string>>;
+  users: UserProps[];
+  createNewTask:()=>void;
+  toggleNewCard:()=>void;
+}
+
 export type UserScreenProps = {
    users:UserProps[],
-   active: String[], 
+   active: string[],
    toggleActive :(index: string)=>void;
 }
